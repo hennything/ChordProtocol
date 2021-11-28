@@ -13,9 +13,10 @@ class Node:
 
     def create(self):
         '''
-        '''
         
-        self.pred_id = None
+        '''
+        pass
+        # self.pred_id = None
         # self.succ_id = n
     
     def join(self, node):
@@ -45,5 +46,11 @@ class Node:
     def check_predecessor(self):
         '''
         check if predecessor node still exists
+        '''
+        pass
+
+    def find_successor(self, id):
+        '''
+
         '''
         pass
