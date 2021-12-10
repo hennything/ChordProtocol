@@ -120,6 +120,19 @@ class Node:
         '''
         pass
 
+    def print_menu(self):
+        print("""\n1. Join Network
+                 \n2. Leave Network
+                 \n3. Print Finger Table
+                 \n4. Print Predecessor
+                 \n5. Print Successor""")
+
+    def print_predecessor(self):
+        print("Predecessor:", self.pred_id)
+
+    def print_successor(self):
+        print("Successor:", self.succ_id)
+
     def print_finger_table(self):
         for key, value in self.finger_table.items(): 
             print("KeyID:", key, "Value", value)
@@ -132,4 +145,5 @@ if __name__ == '__main__':
 
     node_1 = Node(IP, PORT)
     print("Node ID: ", node_1.id)
+    node_1.print_menu()
     node_1.print_finger_table()
