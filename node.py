@@ -38,9 +38,33 @@ class Node:
             print('Bind failed. Error Code : ' + str(massage[0]) + ' Message ' + massage[1])
             sys.exit()
 
+
+    def start_node(self):
+        '''
+        function to initially start the client/node -> should give the menu for connecting
+        to the network or leaving the network
+        '''
+        pass
+
+    def menu(self):
+        '''
+        responsible for the menu of the client
+        called by the start_node function
+        :return:
+        '''
+        pass
+
     # NOTE: function to join node to network
     def join(self):
         '''
+        Should call find_successor
+        '''
+        pass
+
+    def leave(self):
+        '''
+        Leave the network
+        :return:
         '''
         pass
 
@@ -63,9 +87,10 @@ class Node:
         '''
         pass
 
-    def fix_fingers(self):
+    def update_finger_table(self):
         '''
-
+        does what the name says
+        should call find successor (maybe)
         '''
         pass
 
@@ -81,6 +106,19 @@ class Node:
         '''
         pass
 
+    def closest_preceding_node(self):
+        '''
+        search the local table for the highest predecessor of id
+        :return:
+        '''
+        pass
+
+    def update_successor(self):
+        '''
+        Responsible for updating the successor in case it wasn't found
+        :return:
+        '''
+        pass
 
     def print_finger_table(self):
         for key, value in self.finger_table.items(): 
