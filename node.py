@@ -93,6 +93,12 @@ class Node:
         mode = input()
         if mode == '1':
             # call join network
+            # first get the IP and Port of the known node in the network
+            print("Give the IP of the known node:")
+            known_ip = input()
+            print("Give the port of the known node you want to connect:")
+            known_port = input()
+            self.join(known_ip, known_port)
             pass
         elif mode == '2':
             # leave the network
@@ -103,10 +109,11 @@ class Node:
         pass
 
     # NOTE: function to join node to network
-    def join(self):
+    def join(self, ip, port):
         '''
         Should call find_successor
         '''
+        # make a request to the known IP and Port to find the successor
         pass
 
     def leave(self):
