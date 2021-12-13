@@ -2,13 +2,13 @@ import socket, random, sys, hashlib, os, threading
 from collections import OrderedDict
 
 
+# https://en.wikipedia.org/wiki/Chord_(peer-to-peer)
+# Takes key string, uses SHA-1 hashing and returns a 10-bit (1024) compressed integer
+# TODO: rewrite
 MAX_BITS = 10 # TODO: change this
 MAX_NODES = 2 ** MAX_BITS # TODO: change this
-
-# Takes key string, uses SHA-512 hashing and returns a 10-bit (1024) compressed integer
-# TODO: rewrite
 def get_hash(key):
-    result = hashlib.sha512(key.encode())
+    result = hashlib.sha1(key.encode())
     return int(result.hexdigest(), 16) % MAX_NODES
 
 class Node:
