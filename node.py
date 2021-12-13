@@ -1,4 +1,4 @@
-import socket, random, sys, hashlib, os, threading, pickle
+import socket, sys, hashlib, threading, pickle
 from collections import OrderedDict
 
 LOOKUP = 'lookup'
@@ -32,6 +32,8 @@ class Node:
         self.succ = (ip, port)
         self.succ_id = self.id
 
+        self.succ_list = []
+
         # straight from Geeks4Geeks
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,7 +58,7 @@ class Node:
         while True:
             self.menu()
         # need more code here
-        pass
+        # pass
 
     def request_listener(self):
         '''
@@ -84,8 +86,9 @@ class Node:
         data = pickle.loads(connection.recv(4096))
         print(data)
         try:
-            if data[-1] == LOOKUP:
-                succ = self.find_successor(data[0])
+            # if data[-1] == LOOKUP:
+            succ, succ_id = self.find_successor(data[0], data[1])
+            print(succ, succ_id)
         except:
             # print("no load")
             pass
@@ -183,7 +186,7 @@ class Node:
                 break
             try:
                 peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                peer.connect(here)  # Connecting to server
+                peer.connect(succ)  # Connecting to server
                 peer.sendall(pickle.dumps())
                 succ = pickle.loads(peer.recv(4096))
                 peer.close()
@@ -198,34 +201,42 @@ class Node:
         '''
         pass
 
+
+    # the first node on the ring with id greater than or equal id
     def find_successor(self, address, id): 
         '''
         returns -> [ip, port]
         '''
+        # print(address)
         # print(id)
-        while True:
-            if self.address == self.succ:
-                continue
-            try:
-                peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                peer.connect(self.succ)
-                peer.sendall(pickle.dumps())
-                received = pickle.loads(peer.recv(bu4096ffer))
-            #     data = pickle.loads(peer.recv(4096))
-            #     print("find_successor function:", data)
-            #     # INSERT
-            #     peer.close()
-            except socket.error:
-                print("Connection issue")
-        # pass
-        # return successor
+        if id > self.id and id <= self.succ_id:
+            return self.succ, self.succ_id
+        else:
+            print("running closest_proceding_node")
+            succ = self.closest_preceding_node(id)
+            # succ = ('127.0.0.1', 8000)
+            ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            ping.connect(succ)
+            # ping.sendall(pickle.dumps([self.address, self.id, LOOKUP]))
 
-    def closest_preceding_node(self):
+            # return n0.find_successor(id)
+            # return "ASK SOMEONE ELSE"
+
+           
+
+    def closest_preceding_node(self, id):
         '''
         search the local table for the highest predecessor of id
         :return:
         '''
-        pass
+        # TODO: add the finger tabless
+        for i in range(5, 1, -1):
+            if self.finger_table[i] > self.id and self.finger_table[i] < id:
+                print(self.finger_table[i])
+                return self.finger_table[i]
+        return self.address
+
+        
 
     def update_successor(self):
         '''
