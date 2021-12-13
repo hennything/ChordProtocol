@@ -1,8 +1,7 @@
-import socket, random, sys, hashlib, os, threading
+import socket, random, sys, hashlib, os, threading, pickle
 from collections import OrderedDict
 
-MAX_BITS = 10  # TODO: change this
-MAX_NODES = 2 ** MAX_BITS  # TODO: change this
+LOOKUP = 'lookup'
 
 
 # https://en.wikipedia.org/wiki/Chord_(peer-to-peer)
@@ -24,6 +23,7 @@ class Node:
         '''
         self.ip = ip
         self.port = port
+        self.address = (ip, port)
         self.id = get_hash(self.ip + ":" + str(self.port))
         self.finger_table = OrderedDict()
 
@@ -37,10 +37,10 @@ class Node:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.bind((self.ip, self.port))
             self.socket.listen()
-        except socket.error as massage:
+        except socket.error as msg:
             # if any error occurs then with the 
             # help of sys.exit() exit from the program
-            print('Bind failed. Error Code : ' + str(massage[0]) + ' Message ' + massage[1])
+            print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
             sys.exit()
 
     def start_node(self):
@@ -68,7 +68,7 @@ class Node:
             try:
                 connection, address = self.socket.accept()
                 # do we need the timeout?
-                # connection.settimeout(120)
+                connection.settimeout(120)
                 threading.Thread(target=self.handle_request, args=(connection, address)).start()
             except socket.error:
                 print("An error occured")
@@ -81,7 +81,19 @@ class Node:
         :param address: ip address of incoming request
         :return:
         '''
-        pass
+        try:
+            data = pickle.loads(connection.recv(4096))
+            # self
+            if data[1] == LOOKUP:
+                succ = self.find_successor(data[0])
+                # pass
+            print(data)
+        except:
+            # print("no load")
+            pass
+        # print(connection)
+        # print(address)
+        # pass
 
     def menu(self):
         '''
@@ -99,7 +111,7 @@ class Node:
             print("Give the port of the known node you want to connect:")
             known_port = input()
             self.join(known_ip, known_port)
-            pass
+            # pass
         elif mode == '2':
             # leave the network
             pass
@@ -111,10 +123,12 @@ class Node:
     # NOTE: function to join node to network
     def join(self, ip, port):
         '''
-        Should call find_successor
         '''
-        # make a request to the known IP and Port to find the successor
-        pass
+        ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ping.connect((ip, int(port)))
+        ping.sendall(pickle.dumps([self.id, LOOKUP]))
+        # pred = pickle.loads(ping.recv(4096))
+        # print(pred)
 
     def leave(self):
         '''
@@ -157,9 +171,9 @@ class Node:
 
     def find_successor(self, id):
         '''
-
         '''
-        pass
+        print(id)
+        # pass
 
     def closest_preceding_node(self):
         '''
@@ -203,7 +217,7 @@ if __name__ == '__main__':
         PORT = 8080
     else:
         IP = sys.argv[1]
-        PORT = sys.argv[2]
+        PORT = int(sys.argv[2])
 
     node_1 = Node(IP, PORT)
     print("Node ID: ", node_1.id)
