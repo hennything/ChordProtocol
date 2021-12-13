@@ -43,8 +43,37 @@ class Node:
         '''
         function to initially start the client/node -> should give the menu for connecting
         to the network or leaving the network
+        we should call the listener for any requests
+        '''
+        threading.Thread(target=self.request_listener, args=()).start()
+        # need more code here
+        pass
+
+    def request_listener(self):
+        '''
+        Listen to incoming requests, we need to call another thread here, because if we
+        call the necessary functions, it means we block other incoming requests
+        :return:
+        '''
+        while True:
+            try:
+                connection, address = self.socket.accept()
+                # do we need the timeout?
+                # connection.settimeout(120)
+                threading.Thread(target=self.handle_request, args=(connection, address)).start()
+            except socket.error:
+                print("An error occured")
+
+    def handle_request(self, connection, address):
+        '''
+        here we handle the actual requests. Depending on the payload, we do different things
+        First of all, finding successor, the paper defines the function find_successor
+        :param connection: connection object
+        :param address: ip address of incoming request
+        :return:
         '''
         pass
+
 
     def menu(self):
         '''
@@ -140,10 +169,17 @@ class Node:
 
 if __name__ == '__main__':
 
-    IP = "127.0.0.1"
-    PORT = 8080
+    # get IP and PORT
+    if len(sys.argv) < 3:
+        print("Not enough arguments given")
+        print("Initializing to IP: 127.0.0.1 and port 8080")
+        IP = "127.0.0.1"
+        PORT = 8080
+    else:
+        IP = sys.argv[1]
+        PORT = sys.argv[2]
 
     node_1 = Node(IP, PORT)
     print("Node ID: ", node_1.id)
-    node_1.print_menu()
+    node_1.start_node()
     node_1.print_finger_table()
