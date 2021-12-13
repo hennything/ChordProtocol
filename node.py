@@ -81,13 +81,11 @@ class Node:
         :param address: ip address of incoming request
         :return:
         '''
+        data = pickle.loads(connection.recv(4096))
+        print(data)
         try:
-            data = pickle.loads(connection.recv(4096))
-            # self
-            if data[1] == LOOKUP:
+            if data[-1] == LOOKUP:
                 succ = self.find_successor(data[0])
-                # pass
-            print(data)
         except:
             # print("no load")
             pass
@@ -118,6 +116,10 @@ class Node:
         elif mode == '3':
             #     quit completely?
             pass
+        elif mode == '4':
+            print(self.pred)
+        elif mode == '5':
+            print(self.succ)
         pass
 
     # NOTE: function to join node to network
@@ -126,23 +128,22 @@ class Node:
         '''
         ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ping.connect((ip, int(port)))
-        ping.sendall(pickle.dumps([self.id, LOOKUP]))
+        ping.sendall(pickle.dumps([self.address, self.id, LOOKUP]))
         # pred = pickle.loads(ping.recv(4096))
         # print(pred)
+
+        # self.update_finger_table()
 
     def leave(self):
         '''
         Leave the network
-        :return:
+        :returns nothing
         '''
-        pass
-
-    def create(self):
-        '''
-        '''
-        pass
-        # self.pred_id = None
-        # self.succ_id = n
+        self.pred = (self.ip, self.port)
+        self.pred_id = self.id
+        self.succ = (self.ip, self.port)
+        self.succ_id = self.id
+        self.finger_table.clear()
 
     def stabilize(self):
         '''
@@ -150,6 +151,7 @@ class Node:
         '''
         pass
 
+    # NOTE: just pings successor i think, confirm this
     def notify(self, node):
         '''
         updates predecessor node
@@ -161,7 +163,34 @@ class Node:
         does what the name says
         should call find successor (maybe)
         '''
-        pass
+        for i in range(MAX_BITS):
+            entry_id = (self.id + (2 ** i)) % MAX_NODES
+            # If only one node in network
+            if self.succ == self.address:
+                self.finger_table[entry_id] = (self.id, self.address)
+                continue
+            # If multiple nodes in network, we find succ for each entryID
+            # recvIPPort = self.getSuccessor(self.succ, entryId)
+            # recvId = getHash(recvIPPort[0] + ":" + str(recvIPPort[1]))
+            # self.finger_table[entryId] = (recvId, recvIPPort)
+        # pass
+
+    # TODO: review
+    def update_all_finger_tables(self):
+        succ = self.succ
+        while True:
+            if succ == self.address:
+                break
+            try:
+                peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                peer.connect(here)  # Connecting to server
+                peer.sendall(pickle.dumps())
+                succ = pickle.loads(peer.recv(4096))
+                peer.close()
+                if succ == self.succ:
+                    break
+            except socket.error:
+                print("Connection denied")
 
     def check_predecessor(self):
         '''
@@ -169,11 +198,27 @@ class Node:
         '''
         pass
 
-    def find_successor(self, id):
+    def find_successor(self, address, id): 
         '''
+        returns -> [ip, port]
         '''
-        print(id)
+        # print(id)
+        while True:
+            if self.address == self.succ:
+                continue
+            try:
+                peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                peer.connect(self.succ)
+                peer.sendall(pickle.dumps())
+                received = pickle.loads(peer.recv(bu4096ffer))
+            #     data = pickle.loads(peer.recv(4096))
+            #     print("find_successor function:", data)
+            #     # INSERT
+            #     peer.close()
+            except socket.error:
+                print("Connection issue")
         # pass
+        # return successor
 
     def closest_preceding_node(self):
         '''
