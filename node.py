@@ -1,15 +1,20 @@
 import socket, random, sys, hashlib, os, threading
 from collections import OrderedDict
 
+MAX_BITS = 10  # TODO: change this
+MAX_NODES = 2 ** MAX_BITS  # TODO: change this
+
 
 # https://en.wikipedia.org/wiki/Chord_(peer-to-peer)
 # Takes key string, uses SHA-1 hashing and returns a 10-bit (1024) compressed integer
 # TODO: rewrite
 MAX_BITS = 10 # TODO: change this
 MAX_NODES = 2 ** MAX_BITS # TODO: change this
+
 def get_hash(key):
     result = hashlib.sha1(key.encode())
     return int(result.hexdigest(), 16) % MAX_NODES
+
 
 class Node:
 
@@ -21,7 +26,7 @@ class Node:
         self.port = port
         self.id = get_hash(self.ip + ":" + str(self.port))
         self.finger_table = OrderedDict()
-        
+
         self.pred = (ip, port)
         self.pred_id = self.id
         self.succ = (ip, port)
@@ -38,7 +43,6 @@ class Node:
             print('Bind failed. Error Code : ' + str(massage[0]) + ' Message ' + massage[1])
             sys.exit()
 
-
     def start_node(self):
         '''
         function to initially start the client/node -> should give the menu for connecting
@@ -46,6 +50,11 @@ class Node:
         we should call the listener for any requests
         '''
         threading.Thread(target=self.request_listener, args=()).start()
+        # while true here or we can get a result from menu to stop the loop based on the user's choice
+        # everytime a user makes a choice at the menu function, the necessary functions are called
+        # then we return here and call again and wait for more input
+        while True:
+            self.menu()
         # need more code here
         pass
 
@@ -74,13 +83,23 @@ class Node:
         '''
         pass
 
-
     def menu(self):
         '''
         responsible for the menu of the client
         called by the start_node function
         :return:
         '''
+        self.print_menu()
+        mode = input()
+        if mode == '1':
+            # call join network
+            pass
+        elif mode == '2':
+            # leave the network
+            pass
+        elif mode == '3':
+            #     quit completely?
+            pass
         pass
 
     # NOTE: function to join node to network
@@ -163,7 +182,7 @@ class Node:
         print("Successor:", self.succ_id)
 
     def print_finger_table(self):
-        for key, value in self.finger_table.items(): 
+        for key, value in self.finger_table.items():
             print("KeyID:", key, "Value", value)
 
 
