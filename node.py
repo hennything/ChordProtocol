@@ -14,7 +14,6 @@ def get_hash(key):
     result = hashlib.sha1(key.encode())
     return int(result.hexdigest(), 16) % MAX_NODES
 
-
 class Node:
 
     def __init__(self, ip, port):
@@ -24,6 +23,9 @@ class Node:
         self.ip = ip
         self.port = port
         self.address = (ip, port)
+        
+        # a nodes identifier is chosen by hashing the nodes IP address - paper
+        # we use a combination of ip and port during testing otherwise all nodes will have the same ip
         self.id = get_hash(self.ip + ":" + str(self.port))
         self.finger_table = OrderedDict()
 
@@ -70,7 +72,7 @@ class Node:
             try:
                 connection, address = self.socket.accept()
                 # do we need the timeout?
-                connection.settimeout(120)
+                connection.settimeout(60)
                 threading.Thread(target=self.handle_request, args=(connection, address)).start()
             except socket.error:
                 print("An error occured")
@@ -84,11 +86,11 @@ class Node:
         :return:
         '''
         data = pickle.loads(connection.recv(4096))
-        print(data)
+        print("data: ", data)
         try:
             # if data[-1] == LOOKUP:
             succ, succ_id = self.find_successor(data[0], data[1])
-            print(succ, succ_id)
+            print("handling request: ", succ, succ_id)
         except:
             # print("no load")
             pass
@@ -212,15 +214,28 @@ class Node:
         if id > self.id and id <= self.succ_id:
             return self.succ, self.succ_id
         else:
-            print("running closest_proceding_node")
-            succ = self.closest_preceding_node(id)
+            # pass
+            # TODO: 
+            # print("running closest_proceding_node")
+            # succ = self.closest_preceding_node(id)
             # succ = ('127.0.0.1', 8000)
-            ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            ping.connect(succ)
-            # ping.sendall(pickle.dumps([self.address, self.id, LOOKUP]))
+            # print(succ)
+            # NOTE: I DONT EVEN KNOW WHICH THREAD SHOULD CATCH THIS REALLY
+            while True:
+                try:
+                    ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    ping.connect(address)
+                    ping.sendall(pickle.dumps([self.address, self.id, LOOKUP]))
+                    succ = pickle.loads(ping.recv(4096))
+                    print(succ)
+                    ping.close()
+                    print("Successor: ", succ)
+                except socket.error:
+                    print("Connection denied while getting Successor")
 
             # return n0.find_successor(id)
             # return "ASK SOMEONE ELSE"
+        # return self.succ, self.succ_id
 
            
 
@@ -230,10 +245,12 @@ class Node:
         :return:
         '''
         # TODO: add the finger tabless
-        for i in range(5, 1, -1):
-            if self.finger_table[i] > self.id and self.finger_table[i] < id:
-                print(self.finger_table[i])
-                return self.finger_table[i]
+        # for i in range(5, 1, -1):
+        #     print("self.finger_table[i]")
+        #     if self.finger_table[i] > self.id and self.finger_table[i] < id:
+        #         # print(self.finger_table[i])
+        #         print("error")
+        #         return self.finger_table[i]
         return self.address
 
         
