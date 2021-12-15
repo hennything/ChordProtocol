@@ -163,7 +163,7 @@ class Node:
         '''
         pass
 
-    def update_finger_table(self):
+    def fix_fingers(self):
         '''
         does what the name says
         should call find successor (maybe)
@@ -211,7 +211,7 @@ class Node:
         '''
         # print(address)
         # print(id)
-        if id > self.id and id <= self.succ_id:
+        if self.id < id <= self.succ_id:
             return self.succ, self.succ_id
         else:
             # pass
@@ -221,15 +221,18 @@ class Node:
             # succ = ('127.0.0.1', 8000)
             # print(succ)
             # NOTE: I DONT EVEN KNOW WHICH THREAD SHOULD CATCH THIS REALLY
+
+            n_prime_id, n_prime_address = self.closest_preceding_node(id)
             while True:
                 try:
                     ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    ping.connect(address)
-                    ping.sendall(pickle.dumps([self.address, self.id, LOOKUP]))
+                    ping.connect(n_prime_address)
+                    ping.sendall(pickle.dumps([address, id, LOOKUP]))
                     succ = pickle.loads(ping.recv(4096))
                     print(succ)
                     ping.close()
                     print("Successor: ", succ)
+                    return succ
                 except socket.error:
                     print("Connection denied while getting Successor")
 
@@ -237,7 +240,6 @@ class Node:
             # return "ASK SOMEONE ELSE"
         # return self.succ, self.succ_id
 
-           
 
     def closest_preceding_node(self, id):
         '''
@@ -245,13 +247,17 @@ class Node:
         :return:
         '''
         # TODO: add the finger tabless
+        for i in range(MAX_BITS, 1, -1):
+            if self.finger_table[i] and self.id < self.finger_table[i] < id:
+                return self.finger_table[i]
+        return self.id, self.address
         # for i in range(5, 1, -1):
         #     print("self.finger_table[i]")
         #     if self.finger_table[i] > self.id and self.finger_table[i] < id:
         #         # print(self.finger_table[i])
         #         print("error")
         #         return self.finger_table[i]
-        return self.address
+        # return self.address
 
         
 
