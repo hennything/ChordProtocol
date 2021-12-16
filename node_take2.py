@@ -36,16 +36,11 @@ class Node:
         self.succ = None
         self.succ_id = None
 
-        self.succ_list = []
-
-        # straight from Geeks4Geeks
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.bind((self.ip, self.port))
             self.socket.listen()
         except socket.error as msg:
-            # if any error occurs then with the 
-            # help of sys.exit() exit from the program
             print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
             sys.exit()
 
@@ -57,7 +52,7 @@ class Node:
     #####
     def start(self):
         threading.Thread(target = self.stabilize).start()
-        threading.Thread(target=  self.fix_fingers).start()
+        threading.Thread(target = self.fix_fingers).start()
         while True:
             connection, address = self.socket.accept()
             # connection.settimeout(60)
@@ -84,11 +79,11 @@ class Node:
         request = msg.split(":")[0]
         print("handle request message: ", msg.split(":"))
 
-        if request == "send_keys":
-            data = msg.split(":")[1:]
-            print("send_keys called")
-            print(data)
-            return "AAAAHAHAHAHH"
+        # if request == "send_keys":
+        #     data = msg.split(":")[1:]
+        #     print("send_keys called")
+        #     print(data)
+        #     return "AAAAHAHAHAHH"
         
         if request == "join_request":
             print("join_request called")
@@ -140,6 +135,7 @@ class Node:
             return None
         # print("calling get_successor with predecessor: ", predecessor)
         data = self.request_handler.send_message(predecessor, "get_successor")
+        print("get_successor:", data)
         return data
 
 
@@ -155,27 +151,6 @@ class Node:
                 return self.address
             data = self.request_handler.send_message((node_prime), "find_predecessor:{}".format(self.id))
             return data
-            # return node_prime
-
-        #     if search_id == self.id:
-        #     return str(self.nodeinfo)
-        # # print("finding pred for id ", search_id)
-        # if self.predecessor is not None and  self.successor.id == self.id:
-        #     return self.nodeinfo.__str__()
-        # if self.get_forward_distance(self.successor.id) > self.get_forward_distance(search_id):
-        #     return self.nodeinfo.__str__()
-        # else:
-        #     new_node_hop = self.closest_preceding_node(search_id)
-        #     # print("new node hop finding hops in find predecessor" , new_node_hop.nodeinfo.__str__() )
-        #     if new_node_hop is None:
-        #         return "None"
-        #     ip, port = self.get_ip_port(new_node_hop.nodeinfo.__str__())
-        #     if ip == self.ip and port == self.port:
-        #         return self.nodeinfo.__str__()
-        #     data = self.request_handler.send_message(ip , port, "find_predecessor|"+str(search_id))
-        #     return data
-
-        # pass
 
     
     #####
@@ -194,25 +169,27 @@ class Node:
     #
     #####
     def join(self, address):
-        print("JOIN")
         succ = self.request_handler.send_message(address, "join_request:{}:{}:{}".format(self.id, self.ip, self.port))
-        # print(get_hash(succ[0] + ":" + str(succ[1])))
         self.succ = succ
         self.succ_id = get_hash(succ[0] + ":" + str(succ[1]))
         self.finger_table[0][1] = self.succ
-        self.pred = None
+        # self.pred = None
+        print("Node {} successfully joined the Chord ring".format(self.succ_id))
 
 
     def notify(self, id , ip , port):
         '''
         Recevies notification from stabilized function when there is change in successor
         '''
-        print("NOTIFY NONE OF THE CONDITIONS HAVE BEEN MET YET: ", id, ip, port)
         if self.pred is not None:
             self.pred = (ip, int(port))
+            self.pred_id = get_hash(ip + ":" + port)
             print("notify: ", self.pred)
             return
+
         if self.pred is None or id > self.pred_id and id < self.id or self.id == self.pred and id != self.id:
+            self.pred = (ip, int(port))
+            self.pred_id = get_hash(ip + ":" + port)
             print("CONDITION TIME")
         # if self.pred is not None:
         #     if self.get_backward_distance(id) < self.get_backward_distance(self.pred):
@@ -247,13 +224,20 @@ class Node:
             print("self successor: ", self.succ)
             result = self.request_handler.send_message(self.succ, "get_predecessor")
             print("CALELD GET_PREDECESSOR: ", result)
-            if result[0] == None:
-                print("DO WE MAKE IT IN HERE?")
-                self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
-                # continue
+            # if result[0] == None:
+            #     print("DO WE MAKE IT IN HERE?")
+            #     self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
+            #     continue
 
             id = get_hash(result[1][0] + ":" + str(result[1][1]))
             print("ID BABY: ", id)
+            # print(self.succ_id)
+            if result[0] is not None and (self.id < id < self.succ_id or self.succ_id == self.id):
+                self.succ_id = id
+                self.succ = (result[1][0], result[1][1])
+            
+            self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
+
 
             print()
             print("===============================================")
@@ -286,6 +270,8 @@ if __name__ == '__main__':
         # initial update of finger table when creating the chord ring
         node.pred = node.address
         node.succ = node.address
+        node.pred_id = node.id
+        node.succ_id = node.id
         node.finger_table[0][1] = (ip, port)
         node.start()
 
@@ -298,6 +284,10 @@ if __name__ == '__main__':
         port = int(sys.argv[4])
         
         node = Node(ip, port)
+        node.pred = node.address
+        node.succ = node.address
+        node.pred_id = node.id
+        node.succ_id = node.id
         node.join((known_ip, known_port))
         node.start()
         # print(node.succ)
