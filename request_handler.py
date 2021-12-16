@@ -10,7 +10,10 @@ class RequestHandler:
   
         # connect to server on local computer 
         ping.connect(address) 
-        ping.send(pickle.dumps(message)) 
-        data = pickle.loads(ping.recv(1024))
+        ping.send(pickle.dumps(message))
+        try: 
+            data = pickle.loads(ping.recv(1024))
+            return data
+        except:
+            pass
         ping.close()
-        return data
