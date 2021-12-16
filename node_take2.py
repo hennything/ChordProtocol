@@ -31,10 +31,10 @@ class Node:
             node = None
             self.finger_table.append([entry, node])
 
-        self.pred = None
-        self.pred_id = None
-        self.succ = None
-        self.succ_id = None
+        self.pred = self.address
+        self.succ = self.address
+        self.pred_id = self.id
+        self.succ_id = self.id
 
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -93,18 +93,18 @@ class Node:
 
         if request == "get_successor":
             print("get_successor called")
-            if self.succ == None:
-                result = None
-            else:
-                result = self.succ
+            # if self.succ == None:
+            #     result = None
+            # else:
+            result = self.succ
 
         if request == "get_predecessor":
             print("get_predecessor called")
-            if self.pred == None:
-                print("but your getting none in return hoe")
-                result = None
-            else:
-                result = [self.pred_id, self.pred]
+            # if self.pred == None:
+            #     print("but your getting none in return hoe")
+            #     result = None
+            # else:
+            result = [self.pred_id, self.pred]
 
         if request == "find_predecessor":
             print("find_predecessor called")
@@ -221,24 +221,16 @@ class Node:
                 continue
             if self.succ == self.address:
                 time.sleep(10)
-            print("self successor: ", self.succ)
             result = self.request_handler.send_message(self.succ, "get_predecessor")
-            print("CALELD GET_PREDECESSOR: ", result)
             # if result[0] == None:
             #     print("DO WE MAKE IT IN HERE?")
             #     self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
             #     continue
-
             id = get_hash(result[1][0] + ":" + str(result[1][1]))
-            print("ID BABY: ", id)
-            # print(self.succ_id)
             if result[0] is not None and (self.id < id < self.succ_id or self.succ_id == self.id):
                 self.succ_id = id
                 self.succ = (result[1][0], result[1][1])
-            
             self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
-
-
             print()
             print("===============================================")
             print("================= STABILIZING =================")
@@ -267,11 +259,6 @@ if __name__ == '__main__':
         port = int(sys.argv[2])
 
         node = Node(ip, port)
-        # initial update of finger table when creating the chord ring
-        node.pred = node.address
-        node.succ = node.address
-        node.pred_id = node.id
-        node.succ_id = node.id
         node.finger_table[0][1] = (ip, port)
         node.start()
 
@@ -284,10 +271,6 @@ if __name__ == '__main__':
         port = int(sys.argv[4])
         
         node = Node(ip, port)
-        node.pred = node.address
-        node.succ = node.address
-        node.pred_id = node.id
-        node.succ_id = node.id
         node.join((known_ip, known_port))
         node.start()
         # print(node.succ)
