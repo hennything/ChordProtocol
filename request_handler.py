@@ -15,5 +15,6 @@ class RequestHandler:
             data = pickle.loads(ping.recv(1024))
             return data
         except:
+            print("ooooh shit everything with communication is going wrong")
             pass
         ping.close()

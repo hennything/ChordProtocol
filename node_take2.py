@@ -60,7 +60,7 @@ class Node:
         threading.Thread(target=  self.fix_fingers).start()
         while True:
             connection, address = self.socket.accept()
-            connection.settimeout(60)
+            # connection.settimeout(60)
             threading.Thread(target=self.request_listener, args=(connection, address)).start()
 
 
@@ -82,8 +82,13 @@ class Node:
     def handle_request(self, msg):
 
         request = msg.split(":")[0]
-        # print("request: ", request)
         print("handle request message: ", msg.split(":"))
+
+        if request == "send_keys":
+            data = msg.split(":")[1:]
+            print("send_keys called")
+            print(data)
+            return "AAAAHAHAHAHH"
         
         if request == "join_request":
             print("join_request called")
@@ -101,16 +106,16 @@ class Node:
         if request == "get_predecessor":
             print("get_predecessor called")
             if self.pred == None:
+                print("but your getting none in return hoe")
                 result = None
             else:
-                result = self.pred
-            # result = "NOT IMPLEMENTED JUST YET MATE"
+                result = [self.pred_id, self.pred]
 
         if request == "find_predecessor":
             print("find_predecessor called")
             data = msg.split(":")[1:]
             print(data)
-            result = self.find_predecessor()
+            result = self.find_predecessor(data[0])
 
         if request == "notify":
             print("notify called")
@@ -121,7 +126,6 @@ class Node:
             result = "notified"
 
         return result
-
 
     #####
     #
@@ -134,8 +138,7 @@ class Node:
         predecessor = self.find_predecessor(id)
         if predecessor == None:
             return None
-
-        print("MONITORING FOR ERROR: ", predecessor)
+        # print("calling get_successor with predecessor: ", predecessor)
         data = self.request_handler.send_message(predecessor, "get_successor")
         return data
 
@@ -144,20 +147,33 @@ class Node:
     #
     #####
     def find_predecessor(self, id):
-
         if(id == self.id):
             return self.address
-
         else:
             node_prime = self.closest_proceding_node(id)
-            print("node_prime: ", node_prime)
             if node_prime == self.address:
                 return self.address
-
-            print("node_primt_2: ", node_prime)
             data = self.request_handler.send_message((node_prime), "find_predecessor:{}".format(self.id))
             return data
             # return node_prime
+
+        #     if search_id == self.id:
+        #     return str(self.nodeinfo)
+        # # print("finding pred for id ", search_id)
+        # if self.predecessor is not None and  self.successor.id == self.id:
+        #     return self.nodeinfo.__str__()
+        # if self.get_forward_distance(self.successor.id) > self.get_forward_distance(search_id):
+        #     return self.nodeinfo.__str__()
+        # else:
+        #     new_node_hop = self.closest_preceding_node(search_id)
+        #     # print("new node hop finding hops in find predecessor" , new_node_hop.nodeinfo.__str__() )
+        #     if new_node_hop is None:
+        #         return "None"
+        #     ip, port = self.get_ip_port(new_node_hop.nodeinfo.__str__())
+        #     if ip == self.ip and port == self.port:
+        #         return self.nodeinfo.__str__()
+        #     data = self.request_handler.send_message(ip , port, "find_predecessor|"+str(search_id))
+        #     return data
 
         # pass
 
@@ -168,20 +184,9 @@ class Node:
     def closest_proceding_node(self, id):
         node = None
         other = pow(2, MAX_BITS) + 1
-        # print(other)
-
         for i in range(MAX_BITS-1, 0, -1):
-            # print("PRINTING FINGER TABLE")
-            # print(self.finger_table[i]) 
-            # print(self.finger_table)
             if self.finger_table[i][1] is not None and self.id < self.finger_table[i][0] < int(id):
-                print(i, self.finger_table[i])
-                print("FINDING IT INSIDE THE LOOP FOR ONCE")
                 return self.finger_table[i][1]
-            # print(self.id, self.finger_table[i][1], id)
-            # if self.finger_table[i][1] is not None and self.id < self.finger_table[i][1] < id:
-                # print("FINGER LICKING GOOD TABLE: ", self.finger_table[i])
-        
         return self.address
 
 
@@ -189,30 +194,23 @@ class Node:
     #
     #####
     def join(self, address):
+        print("JOIN")
         succ = self.request_handler.send_message(address, "join_request:{}:{}:{}".format(self.id, self.ip, self.port))
-        print(succ)
-        print("are we done finding out successor yet?")
+        # print(get_hash(succ[0] + ":" + str(succ[1])))
         self.succ = succ
+        self.succ_id = get_hash(succ[0] + ":" + str(succ[1]))
         self.finger_table[0][1] = self.succ
         self.pred = None
-
-        self.succ_id = get_hash(succ[0] + ":" + str(succ[1]))
-        # if self.succ != self.id:
-            # data = self.request_handler.send_message(self.succ, "send_keys:{}".format(self.id))
-        # self.successor = Node(ip,port)
-        # address = self.get_address(succ)
-        print("NODE: {} successfully joined the ring".format(self.id))
-
 
 
     def notify(self, id , ip , port):
         '''
         Recevies notification from stabilized function when there is change in successor
         '''
-        print("I AM IN NOTIFY AND HERE IS WHERE I SHALL CRASH AND BURN")
-        print(id, ip, port)
+        print("NOTIFY NONE OF THE CONDITIONS HAVE BEEN MET YET: ", id, ip, port)
         if self.pred is not None:
             self.pred = (ip, int(port))
+            print("notify: ", self.pred)
             return
         if self.pred is None or id > self.pred_id and id < self.id or self.id == self.pred and id != self.id:
             print("CONDITION TIME")
@@ -232,61 +230,29 @@ class Node:
             random_index = random.randint(1,MAX_BITS-1)
             finger = self.finger_table[random_index][0]
             data = self.find_successor(finger)
-            print("data: ", data)
             if data == None:
                 time.sleep(10)
                 continue
-            # ip, port = data[0],  data[1]
             self.finger_table[random_index][1] = data 
             time.sleep(10)
 
-            # while True:
-
-            # random_index = random.randint(1,m-1)
-            # finger = self.finger_table.table[random_index][0]
-            # # print("in fix fingers , fixing index", random_index)
-            # data = self.find_successor(finger)
-            # if data == "None":
-            #     time.sleep(10)
-            #     continue
-            # ip,port = self.get_ip_port(data)
-            # self.finger_table.table[random_index][1] = Node(ip,port) 
-            # time.sleep(10)
-
 
     def stabilize(self):
-        # while True:
-        #     time.sleep(5)
-        #     ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #     ping.connect(self.succ)
-        #     ping.sendall(pickle.dumps([PREDECESSOR]))
-        #     x_id, x_address = pickle.loads(ping.recv(4096))
-        #     ping.close()
-        #     if self.id < x_id < self.succ_id or self.succ_id == self.id:
-        #         self.succ_id = x_id
-        #         self.succ = x_address
-        #     ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #     ping.connect(self.succ)
-        #     ping.sendall(pickle.dumps([self.id, self.address, NOTIFY]))
-        #     ping.close()
         while True:
             if self.succ is None:
                 time.sleep(10)
                 continue
-
             if self.succ == self.address:
                 time.sleep(10)
-
-            # print("shouldnt even make it here")
+            print("self successor: ", self.succ)
             result = self.request_handler.send_message(self.succ, "get_predecessor")
-            print("get predecessors: ", result)
-            if result == None:
-                self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.ip, self.port, self.id))
-                continue
+            print("CALELD GET_PREDECESSOR: ", result)
+            if result[0] == None:
+                print("DO WE MAKE IT IN HERE?")
+                self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
+                # continue
 
-            # result = int(self.request_handler.send_message(ip,port,"get_id"))
-            print(result)
-            id = get_hash(result[0] + str(result[1]))
+            id = get_hash(result[1][0] + ":" + str(result[1][1]))
             print("ID BABY: ", id)
 
             print()
@@ -294,11 +260,11 @@ class Node:
             print("================= STABILIZING =================")
             print("===============================================")
             print()
-            print("ID: ", self.id)
+            print("ID/Address: ", self.id, self.address)
             if self.succ is not None:
-                print("Successor ID: " , self.succ_id)
+                print("Successor ID/Address: " , self.succ_id, self.succ) # TODO: remove self.succ
             if self.pred is not None:
-                print("predecessor ID: " , self.pred_id)
+                print("predecessor ID/Address: " , self.pred_id,  self.pred) # TODO: remove self.pred
             print()
             print("===============================================")
             print("=============== FINGER TABLE ==================")
