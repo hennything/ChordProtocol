@@ -49,10 +49,18 @@ class Node:
         self.request_handler = RequestHandler()
 
     def init_finger_table(self):
+        """
+        just initializes the finger table to entries pointing to self
+        """
         for i in range(MAX_BITS):
             self.finger_table.append([self.id, self.address])
 
     def start(self):
+        """
+        Launches all needed threads. It launches the threads and keeps track of them in the threads
+        list of the node. Launches a thread for: stabilize, fix fingers, check predecessor, menu and request listener.
+        :return:
+        """
         t_stab = threading.Thread(target=self.stabilize)
         t_stab.start()
         self.threads.append(t_stab)
@@ -74,16 +82,25 @@ class Node:
             self.threads.append(th)
 
     def request_listener(self, connection, address):
-
+        """
+        when another node makes a connection with us, a thread is launched that runs this function. It is responsible
+        of running the handle request method and sending back the results
+        :param connection: The connection object created when we received a request
+        :param address: The address of the node that we handle the request for
+        :return: The method does not return something back. It just sends back the result with the socket connection
+        """
         data = pickle.loads(connection.recv(1024))
-
         data = self.handle_request(data)
         connection.sendall(pickle.dumps(data))
 
     def handle_request(self, msg):
-
+        """
+        Responsible for calling the right method depending on the data of the message that was sent as a request
+        :param msg: The Message that was sent as a request
+        :return: returns the result created when handling the request
+        """
         request = msg.split(":")[0]
-
+        result = ''
         if request == "join_request":
             data = msg.split(":")[1:]
             result = self.find_successor(data[2])
@@ -113,6 +130,12 @@ class Node:
         return result
 
     def find_successor(self, id):
+        """
+        Find successor method, follows what was the pseudo code of the paper, just adds more coniditions
+        Uses the closes preceding node function.
+        :param id: The ID of the node that is trying to join the network
+        :return:
+        """
         if self.id < int(id) < self.succ_id or self.succ_id == self.id:
             return self.succ
         else:
@@ -126,6 +149,12 @@ class Node:
             return address
 
     def closest_preceding_node(self, id):
+        """
+        Closest preceding node function, same as the paper pseudo code. Goes through the entries in the finger table
+        and if one satisfies the condition, returns the address
+        :param id: ID of the node trying to join
+        :return: Address of the finger table entry that satisfies the requirement
+        """
         for i in range(MAX_BITS - 1, 0, -1):
             if self.finger_table[i][1] is not None and self.id < self.finger_table[i][0] < int(id):
                 return self.finger_table[i][1]

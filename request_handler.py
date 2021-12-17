@@ -13,11 +13,10 @@ class RequestHandler:
             ping.connect(address)
             ping.send(pickle.dumps(message))
             data = pickle.loads(ping.recv(1024))
+            ping.close()
             return data
         except socket.error:
             # print("NO CONNECTION")
             return "error"
         except:
-            print("ooooh shit everything with communication is going wrong")
-            pass
-        ping.close()
+            return "error"
