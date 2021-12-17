@@ -9,3 +9,18 @@ python node.py <ip> <port>
 ```
 
 A node can join a chord ring by selecting 'join' in the menu prompt and passing it the ip address and the port number of a node in that node ring.
+
+Todo:
+* implement leave (nodes can leave but not by menu input)
+* implement key/value pairs (adding data to nodes)
+
+Done:
+* start
+* stabalize
+* fix fingers
+* notify 
+* join
+* find successor
+* fnid predecessor
+* closest proceding node
+* check predecessor
