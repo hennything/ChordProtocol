@@ -325,4 +325,11 @@ if __name__ == '__main__':
 
         node = Node(ip, port)
         node.start()
-
+    else:
+        print()
+        print("Not enough arguments given")
+        print("Usage: python node.py <ip> <port>")
+        print()
+        print("Now Exiting ------------>")
+        print("Goodbye")
+        exit()
