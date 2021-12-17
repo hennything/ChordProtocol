@@ -1,18 +1,19 @@
-import socket, sys, hashlib, threading, pickle
-from collections import OrderedDict
+import hashlib
+import pickle
+import socket
+import sys
+import threading
+import time
 
-LOOKUP = 'lookup'
+from request_handler import RequestHandler
 
+MAX_BITS = 4
 
-# https://en.wikipedia.org/wiki/Chord_(peer-to-peer)
-# Takes key string, uses SHA-1 hashing and returns a 10-bit (1024) compressed integer
-# TODO: rewrite
-MAX_BITS = 10 # TODO: change this
-MAX_NODES = 2 ** MAX_BITS # TODO: change this
 
 def get_hash(key):
-    result = hashlib.sha1(key.encode())
-    return int(result.hexdigest(), 16) % MAX_NODES
+    result = hashlib.sha256(key.encode())
+    return int(result.hexdigest(), 16) % pow(2, MAX_BITS)
+
 
 class Node:
 
@@ -23,80 +24,204 @@ class Node:
         self.ip = ip
         self.port = port
         self.address = (ip, port)
-        
+
         # a nodes identifier is chosen by hashing the nodes IP address - paper
         # we use a combination of ip and port during testing otherwise all nodes will have the same ip
         self.id = get_hash(self.ip + ":" + str(self.port))
-        self.finger_table = OrderedDict()
+        self.finger_table = []
+        self.init_finger_table()
 
-        self.pred = (ip, port)
-        self.pred_id = self.id
-        self.succ = (ip, port)
+        self.pred = None
+        self.succ = self.address
+        self.pred_id = None
         self.succ_id = self.id
+        self.threads = []
+        self.run_threads = True
 
-        self.succ_list = []
-
-        # straight from Geeks4Geeks
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.bind((self.ip, self.port))
             self.socket.listen()
         except socket.error as msg:
-            # if any error occurs then with the 
-            # help of sys.exit() exit from the program
             print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
             sys.exit()
 
-    def start_node(self):
-        '''
-        function to initially start the client/node -> should give the menu for connecting
-        to the network or leaving the network
-        we should call the listener for any requests
-        '''
-        threading.Thread(target=self.request_listener, args=()).start()
-        # while true here or we can get a result from menu to stop the loop based on the user's choice
-        # everytime a user makes a choice at the menu function, the necessary functions are called
-        # then we return here and call again and wait for more input
-        while True:
-            self.menu()
-        # need more code here
-        # pass
+        self.request_handler = RequestHandler()
 
-    def request_listener(self):
-        '''
-        Listen to incoming requests, we need to call another thread here, because if we
-        call the necessary functions, it means we block other incoming requests
-        :return:
-        '''
-        while True:
-            try:
-                connection, address = self.socket.accept()
-                # do we need the timeout?
-                connection.settimeout(60)
-                threading.Thread(target=self.handle_request, args=(connection, address)).start()
-            except socket.error:
-                print("An error occured")
+    def init_finger_table(self):
+        for i in range(MAX_BITS):
+            self.finger_table.append([self.id, self.address])
 
-    def handle_request(self, connection, address):
-        '''
-        here we handle the actual requests. Depending on the payload, we do different things
-        First of all, finding successor, the paper defines the function find_successor
-        :param connection: connection object
-        :param address: ip address of incoming request
-        :return:
-        '''
-        data = pickle.loads(connection.recv(4096))
-        print("data: ", data)
-        try:
-            # if data[-1] == LOOKUP:
-            succ, succ_id = self.find_successor(data[0], data[1])
-            print("handling request: ", succ, succ_id)
-        except:
-            # print("no load")
+    def start(self):
+        t_stab = threading.Thread(target=self.stabilize)
+        t_stab.start()
+        self.threads.append(t_stab)
+        t_fix = threading.Thread(target=self.fix_fingers)
+        t_fix.start()
+        self.threads.append(t_fix)
+        t_check = threading.Thread(target=self.check_predecessor)
+        t_check.start()
+        self.threads.append(t_check)
+
+        t_menu = threading.Thread(target=self.menu)
+        t_menu.start()
+        self.threads.append(t_menu)
+
+        while self.run_threads:
+            connection, address = self.socket.accept()
+            th = threading.Thread(target=self.request_listener, args=(connection, address))
+            th.start()
+            self.threads.append(th)
+
+    def request_listener(self, connection, address):
+
+        data = pickle.loads(connection.recv(1024))
+
+        data = self.handle_request(data)
+        connection.sendall(pickle.dumps(data))
+
+    def handle_request(self, msg):
+
+        request = msg.split(":")[0]
+
+        if request == "join_request":
+            data = msg.split(":")[1:]
+            result = self.find_successor(data[2])
+
+        if request == "find_successor":
+            data = msg.split(":")[1:]
+            result = self.find_successor(data[0])
+
+        if request == "get_successor":
+            result = self.succ
+
+        if request == "get_predecessor":
+            result = [self.pred_id, self.pred]
+
+        if request == "find_predecessor":
+            data = msg.split(":")[1:]
+            result = self.find_predecessor(data[0])
+
+        if request == "notify":
+            data = msg.split(":")[1:]
+            self.notify(data[0], data[1], data[2])
+            result = "notified"
+
+        if request == "ping":
+            result = "pinged"
+
+        return result
+
+    def find_successor(self, id):
+        if self.id < int(id) < self.succ_id or self.succ_id == self.id:
+            return self.succ
+        else:
+            finger = self.closest_preceding_node(id)
+            if finger == self.address:
+                return self.address
+
+            address = self.request_handler.send_message(finger, "find_successor:{}".format(id))
+            if address == "error":
+                return self.address
+            return address
+
+    def closest_preceding_node(self, id):
+        for i in range(MAX_BITS - 1, 0, -1):
+            if self.finger_table[i][1] is not None and self.id < self.finger_table[i][0] < int(id):
+                return self.finger_table[i][1]
+        return self.address
+
+    def find_predecessor(self, id):
+        if id == self.id:
+            return self.address
+        else:
+            node_prime = self.closest_preceding_node(id)
+            if node_prime == self.address:
+                return self.address
+            data = self.request_handler.send_message((node_prime), "find_predecessor:{}".format(self.id))
+            if data == "error":
+                return self.address
+            return data
+
+    def join(self, address):
+        succ = self.request_handler.send_message(address,
+                                                 "join_request:{}:{}:{}".format(self.id, self.ip, self.port))
+        # this call shouldnt even get the error
+        if succ == "error":
+            # execute leave
             pass
-        # print(connection)
-        # print(address)
-        # pass
+        self.succ = succ
+        self.succ_id = get_hash(succ[0] + ":" + str(succ[1]))
+        self.finger_table[0][0] = self.succ_id
+        self.finger_table[0][1] = self.succ
+        print("Node {} successfully joined the Chord ring".format(self.succ_id))
+
+    def notify(self, id, ip, port):
+        '''
+        Recevies notification from stabilized function when there is change in successor
+        '''
+        if self.pred is None or self.pred == self.address or int(self.pred_id) < int(id) < int(self.id) or \
+                (int(self.pred_id) > int(self.id) > int(id)):
+            self.pred = (ip, int(port))
+            self.pred_id = get_hash(ip + ":" + port)
+
+    def fix_fingers(self):
+        while self.run_threads:
+            for i in range(1, MAX_BITS):
+                finger = self.finger_table[i][0]
+                self.finger_table[i][1] = self.find_successor(finger)
+                id = get_hash(ip + ":" + str(port))
+                self.finger_table[i][0] = id
+            time.sleep(10)
+
+    def stabilize(self):
+        while self.run_threads:
+            if self.succ is None:
+                time.sleep(10)
+                continue
+            if self.succ == self.address:
+                time.sleep(10)
+            result = self.request_handler.send_message(self.succ, "get_predecessor")
+
+            if result == "error":
+                self.succ_id = self.id
+                self.succ = self.address
+                # result = [self.id, self.address]
+            elif result[0] is not None:
+                id = get_hash(result[1][0] + ":" + str(result[1][1]))
+                if int(self.id) < int(id) < int(self.succ_id) or int(self.succ_id) == int(self.id) or \
+                        (int(self.succ_id) < int(self.id) and int(self.succ_id > int(id))):
+                    self.succ_id = id
+                    self.succ = (result[1][0], result[1][1])
+            self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
+            print()
+            print("===============================================")
+            print("================= STABILIZING =================")
+            print("===============================================")
+            print()
+            print("ID/Address: ", self.id, self.address)
+            if self.succ is not None:
+                print("Successor ID/Address: ", self.succ_id, self.succ)
+            if self.pred is not None:
+                print("predecessor ID/Address: ", self.pred_id, self.pred)
+            print()
+            print("===============================================")
+            print("=============== FINGER TABLE ==================")
+            print(self.finger_table)
+            print("===============================================")
+            print()
+            time.sleep(10)
+
+    def check_predecessor(self):
+        while self.run_threads:
+            time.sleep(10)
+            if self.pred is None or self.pred == self.address:
+                continue
+            ping_result = self.request_handler.send_message(self.pred, "ping")
+            if ping_result == "pinged":
+                continue
+            self.pred = None
+            self.pred_id = None
 
     def menu(self):
         '''
@@ -104,176 +229,30 @@ class Node:
         called by the start_node function
         :return:
         '''
-        self.print_menu()
-        mode = input()
-        if mode == '1':
-            # call join network
-            # first get the IP and Port of the known node in the network
-            print("Give the IP of the known node:")
-            known_ip = input()
-            print("Give the port of the known node you want to connect:")
-            known_port = input()
-            self.join(known_ip, known_port)
-            # pass
-        elif mode == '2':
-            # leave the network
+        while self.run_threads:
+            self.print_menu()
+            mode = input()
+            if mode == '1':
+                print("Give the IP of the known node:")
+                known_ip = input()
+                print("Give the port of the known node you want to connect:")
+                known_port = input()
+                self.join((known_ip, int(known_port)))
+                # pass
+            elif mode == '2':
+                self.print_finger_table()
+                pass
+            elif mode == '3':
+                print(self.pred)
+            elif mode == '4':
+                print(self.succ)
             pass
-        elif mode == '3':
-            #     quit completely?
-            pass
-        elif mode == '4':
-            print(self.pred)
-        elif mode == '5':
-            print(self.succ)
-        pass
-
-    # NOTE: function to join node to network
-    def join(self, ip, port):
-        '''
-        '''
-        ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ping.connect((ip, int(port)))
-        ping.sendall(pickle.dumps([self.address, self.id, LOOKUP]))
-        # pred = pickle.loads(ping.recv(4096))
-        # print(pred)
-
-        # self.update_finger_table()
-
-    def leave(self):
-        '''
-        Leave the network
-        :returns nothing
-        '''
-        self.pred = (self.ip, self.port)
-        self.pred_id = self.id
-        self.succ = (self.ip, self.port)
-        self.succ_id = self.id
-        self.finger_table.clear()
-
-    def stabilize(self):
-        '''
-        verifys successor and notifys successor
-        '''
-        pass
-
-    # NOTE: just pings successor i think, confirm this
-    def notify(self, node):
-        '''
-        updates predecessor node
-        '''
-        pass
-
-    def fix_fingers(self):
-        '''
-        does what the name says
-        should call find successor (maybe)
-        '''
-        for i in range(MAX_BITS):
-            entry_id = (self.id + (2 ** i)) % MAX_NODES
-            # If only one node in network
-            if self.succ == self.address:
-                self.finger_table[entry_id] = (self.id, self.address)
-                continue
-            # If multiple nodes in network, we find succ for each entryID
-            # recvIPPort = self.getSuccessor(self.succ, entryId)
-            # recvId = getHash(recvIPPort[0] + ":" + str(recvIPPort[1]))
-            # self.finger_table[entryId] = (recvId, recvIPPort)
-        # pass
-
-    # TODO: review
-    def update_all_finger_tables(self):
-        succ = self.succ
-        while True:
-            if succ == self.address:
-                break
-            try:
-                peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                peer.connect(succ)  # Connecting to server
-                peer.sendall(pickle.dumps())
-                succ = pickle.loads(peer.recv(4096))
-                peer.close()
-                if succ == self.succ:
-                    break
-            except socket.error:
-                print("Connection denied")
-
-    def check_predecessor(self):
-        '''
-        check if predecessor node still exists
-        '''
-        pass
-
-
-    # the first node on the ring with id greater than or equal id
-    def find_successor(self, address, id): 
-        '''
-        returns -> [ip, port]
-        '''
-        # print(address)
-        # print(id)
-        if self.id < id <= self.succ_id:
-            return self.succ, self.succ_id
-        else:
-            # pass
-            # TODO: 
-            # print("running closest_proceding_node")
-            # succ = self.closest_preceding_node(id)
-            # succ = ('127.0.0.1', 8000)
-            # print(succ)
-            # NOTE: I DONT EVEN KNOW WHICH THREAD SHOULD CATCH THIS REALLY
-
-            n_prime_id, n_prime_address = self.closest_preceding_node(id)
-            while True:
-                try:
-                    ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    ping.connect(n_prime_address)
-                    ping.sendall(pickle.dumps([address, id, LOOKUP]))
-                    succ = pickle.loads(ping.recv(4096))
-                    print(succ)
-                    ping.close()
-                    print("Successor: ", succ)
-                    return succ
-                except socket.error:
-                    print("Connection denied while getting Successor")
-
-            # return n0.find_successor(id)
-            # return "ASK SOMEONE ELSE"
-        # return self.succ, self.succ_id
-
-
-    def closest_preceding_node(self, id):
-        '''
-        search the local table for the highest predecessor of id
-        :return:
-        '''
-        # TODO: add the finger tabless
-        for i in range(MAX_BITS, 1, -1):
-            if self.finger_table[i] and self.id < self.finger_table[i] < id:
-                return self.finger_table[i]
-        return self.id, self.address
-        # for i in range(5, 1, -1):
-        #     print("self.finger_table[i]")
-        #     if self.finger_table[i] > self.id and self.finger_table[i] < id:
-        #         # print(self.finger_table[i])
-        #         print("error")
-        #         return self.finger_table[i]
-        # return self.address
-
-        
-
-    def update_successor(self):
-        '''
-        Responsible for updating the successor in case it wasn't found
-        :return:
-        '''
-        pass
 
     def print_menu(self):
         print("""\n1. Join Network
-                 \n2. Leave Network
-                 \n3. Print Finger Table
-                 \n4. Print Predecessor
-                 \n5. Print Successor""")
+                 \n2. Print Finger Table
+                 \n3. Print Predecessor
+                 \n4. Print Successor""")
 
     def print_predecessor(self):
         print("Predecessor:", self.pred_id)
@@ -282,23 +261,17 @@ class Node:
         print("Successor:", self.succ_id)
 
     def print_finger_table(self):
-        for key, value in self.finger_table.items():
+        for key, value in self.finger_table:
             print("KeyID:", key, "Value", value)
 
 
 if __name__ == '__main__':
 
-    # get IP and PORT
-    if len(sys.argv) < 3:
-        print("Not enough arguments given")
-        print("Initializing to IP: 127.0.0.1 and port 8080")
-        IP = "127.0.0.1"
-        PORT = 8080
-    else:
-        IP = sys.argv[1]
-        PORT = int(sys.argv[2])
+    # create chord ring
+    if len(sys.argv) == 3:
+        ip = sys.argv[1]
+        port = int(sys.argv[2])
 
-    node_1 = Node(IP, PORT)
-    print("Node ID: ", node_1.id)
-    node_1.start_node()
-    node_1.print_finger_table()
+        node = Node(ip, port)
+        node.start()
+
