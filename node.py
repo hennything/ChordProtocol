@@ -161,6 +161,11 @@ class Node:
         return self.address
 
     def find_predecessor(self, id):
+        """
+        Find predecessor method
+        :param id:
+        :return:
+        """
         if id == self.id:
             return self.address
         else:
@@ -173,22 +178,39 @@ class Node:
             return data
 
     def join(self, address):
+        """
+        Join method. When a node wants to join a network, this method is called. It makes a request to the given address
+        to receive what should be the node's successor. If the request fails, it prints the error message
+        :param address: The known address of the network that we want to join
+        :return: Does not return something
+        """
         succ = self.request_handler.send_message(address,
                                                  "join_request:{}:{}:{}".format(self.id, self.ip, self.port))
-        # this call shouldnt even get the error
+
         if succ == "error":
-            # execute leave
-            pass
+            print()
+            print("===============================================")
+            print("=============== UNABLE TO JOIN ================")
+            print("=== COULD NOT CONNECT TO THE IP/PORT GIVEN ====")
+            print("===============================================")
+            print()
+            return
+
         self.succ = succ
         self.succ_id = get_hash(succ[0] + ":" + str(succ[1]))
         self.finger_table[0][0] = self.succ_id
         self.finger_table[0][1] = self.succ
-        print("Node {} successfully joined the Chord ring".format(self.succ_id))
+        print("Node {} successfully joined the Chord ring".format(self.id))
 
     def notify(self, id, ip, port):
-        '''
-        Recevies notification from stabilized function when there is change in successor
-        '''
+        """
+        Recevies notification from stabilize function when there is change in successor. Based on the condition, it will
+        change the predessor to the ip and port number given
+        :param id: The id
+        :param ip: IP of predecessor
+        :param port: Port number of predecessor
+        :return: Empty
+        """
         if self.pred is None or self.pred == self.address or int(self.pred_id) < int(id) < int(self.id) or \
                 (int(self.pred_id) > int(self.id) > int(id)):
             self.pred = (ip, int(port))
