@@ -15,6 +15,7 @@ class RequestHandler:
             data = pickle.loads(ping.recv(1024))
             return data
         except socket.error:
+            # print("NO CONNECTION")
             return "error"
         except:
             print("ooooh shit everything with communication is going wrong")

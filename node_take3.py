@@ -7,11 +7,7 @@ import time
 
 from request_handler import RequestHandler
 
-LOOKUP = 'lookup'
-JOIN = 'join'
-
-MAX_BITS = 10
-
+MAX_BITS = 4
 
 def get_hash(key):
     result = hashlib.sha256(key.encode())
@@ -34,12 +30,6 @@ class Node:
         self.finger_table = []
         for i in range(MAX_BITS):
             self.finger_table.append([self.id, self.address])
-        print(self.finger_table)
-        print(self.finger_table[0][0])
-
-            # x = pow(2, i)
-            # entry = (self.id + x) % pow(2, MAX_BITS)
-            # node = None
 
         self.pred = None
         self.succ = self.address
@@ -62,6 +52,7 @@ class Node:
     def start(self):
         threading.Thread(target=self.stabilize).start()
         threading.Thread(target=self.fix_fingers).start()
+        threading.Thread(target=self.check_predecessor).start()
         while True:
             connection, address = self.socket.accept()
             # connection.settimeout(60)
@@ -111,6 +102,7 @@ class Node:
             #     print("but your getting none in return hoe")
             #     result = None
             # else:
+            print(self.pred_id, self.pred)
             result = [self.pred_id, self.pred]
 
         if request == "find_predecessor":
@@ -128,7 +120,7 @@ class Node:
             result = "notified"
 
         if request == "ping":
-            print("I was pinged")
+            # print("I was pinged")
             result = "pinged"
 
         return result
@@ -138,12 +130,15 @@ class Node:
             return self.succ
         else:
             print("Find successor second part")
+            print(id)
             finger = self.closest_preceding_node(id)
             if finger == self.address:
                 return self.address
             if id is None:
                 print("ID WAS NONE")
             address = self.request_handler.send_message(finger, "find_successor:{}".format(id))
+            if address == "error":
+                return self.address
             return address
 
     def closest_preceding_node(self, id):
@@ -160,11 +155,17 @@ class Node:
             if node_prime == self.address:
                 return self.address
             data = self.request_handler.send_message((node_prime), "find_predecessor:{}".format(self.id))
+            if data == "error":
+                return self.address
             return data
 
     def join(self, address):
         succ = self.request_handler.send_message(address,
                                                  "join_request:{}:{}:{}".format(self.id, self.ip, self.port))
+        # this call shouldnt even get the error
+        if succ == "error":
+            # execute leave
+            pass
         self.succ = succ
         self.succ_id = get_hash(succ[0] + ":" + str(succ[1]))
         self.finger_table[0][0] = self.succ_id
@@ -206,11 +207,12 @@ class Node:
             if self.succ == self.address:
                 time.sleep(10)
             result = self.request_handler.send_message(self.succ, "get_predecessor")
-            # if result[0] == None:
-            #     print("DO WE MAKE IT IN HERE?")
-            #     self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
-            #     continue
-            if result[0] is not None:
+            
+            if result == "error":
+                self.succ_id = self.id
+                self.succ = self.address
+                # result = [self.id, self.address]
+            elif result[0] is not None:
                 id = get_hash(result[1][0] + ":" + str(result[1][1]))
                 if int(self.id) < int(id) < int(self.succ_id) or int(self.succ_id) == int(self.id) or \
                             (int(self.succ_id) < int(self.id) and int(self.succ_id > int(id))):
@@ -225,9 +227,9 @@ class Node:
             print()
             print("ID/Address: ", self.id, self.address)
             if self.succ is not None:
-                print("Successor ID/Address: " , self.succ_id, self.succ) # TODO: remove self.succ
+                print("Successor ID/Address: " , self.succ_id, self.succ) 
             if self.pred is not None:
-                print("predecessor ID/Address: " , self.pred_id,  self.pred) # TODO: remove self.pred
+                print("predecessor ID/Address: " , self.pred_id,  self.pred)
             print()
             print("===============================================")
             print("=============== FINGER TABLE ==================")
@@ -242,10 +244,12 @@ class Node:
             if self.pred is None or self.pred == self.address:
                 continue
             ping_result = self.request_handler.send_message(self.pred, "ping")
+            print("pinged results: ", ping_result)
             if ping_result == "pinged":
                 continue
             self.pred = None
             self.pred_id = None
+            print("pinged: ", self.pred, self.pred_id)
 
 
 if __name__ == '__main__':
@@ -256,7 +260,7 @@ if __name__ == '__main__':
         port = int(sys.argv[2])
 
         node = Node(ip, port)
-        node.finger_table[0][1] = (ip, port)
+        # node.finger_table[0][1] = (ip, port)
         node.start()
 
     # join chord ring
