@@ -22,6 +22,6 @@ Done:
 * notify 
 * join
 * find successor
-* fnid predecessor
+* find predecessor
 * closest proceding node
 * check predecessor

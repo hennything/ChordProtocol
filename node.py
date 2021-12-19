@@ -101,7 +101,7 @@ class Node:
         """
         request = msg.split(":")[0]
         result = ''
-        if request == "join_request":
+        if request == "join":
             data = msg.split(":")[1:]
             result = self.find_successor(data[2])
 
@@ -112,12 +112,12 @@ class Node:
         if request == "get_successor":
             result = self.succ
 
-        if request == "get_predecessor":
-            result = [self.pred_id, self.pred]
-
         if request == "find_predecessor":
             data = msg.split(":")[1:]
             result = self.find_predecessor(data[0])
+
+        if request == "get_predecessor":
+            result = [self.pred_id, self.pred]
 
         if request == "notify":
             data = msg.split(":")[1:]
@@ -185,7 +185,7 @@ class Node:
         :return: Does not return something
         """
         succ = self.request_handler.send_message(address,
-                                                 "join_request:{}:{}:{}".format(self.id, self.ip, self.port))
+                                                 "join:{}:{}:{}".format(self.id, self.ip, self.port))
 
         if succ == "error":
             print()
@@ -245,22 +245,25 @@ class Node:
                     self.succ_id = id
                     self.succ = (result[1][0], result[1][1])
             self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
-            print()
-            print("===============================================")
-            print("================= STABILIZING =================")
-            print("===============================================")
-            print()
-            print("ID/Address: ", self.id, self.address)
-            if self.succ is not None:
-                print("Successor ID/Address: ", self.succ_id, self.succ)
-            if self.pred is not None:
-                print("predecessor ID/Address: ", self.pred_id, self.pred)
-            print()
-            print("===============================================")
-            print("=============== FINGER TABLE ==================")
-            print(self.finger_table)
-            print("===============================================")
-            print()
+            # print()
+            # print("===============================================")
+            # print("================= STABILIZING =================")
+            # print("===============================================")
+            # print()
+            # print("ID/Address: ", self.id)
+            # if self.succ is not None:
+            #     # print("Successor ID/Address: ", self.succ_id, self.succ)
+            #     self.print_successor()
+            # if self.pred is not None:
+            #     self.print_predecessor()
+            #     # print("predecessor ID/Address: ", self.pred_id, self.pred)
+            # print()
+            # print("===============================================")
+            # print("=============== FINGER TABLE ==================")
+            # # print(self.finger_table)
+            # self.print_finger_table()
+            # print("===============================================")
+            # print()
             time.sleep(10)
 
     def check_predecessor(self):
@@ -289,14 +292,13 @@ class Node:
                 print("Give the port of the known node you want to connect:")
                 known_port = input()
                 self.join((known_ip, int(known_port)))
-                # pass
             elif mode == '2':
                 self.print_finger_table()
                 pass
             elif mode == '3':
-                print(self.pred)
+                self.print_predecessor()
             elif mode == '4':
-                print(self.succ)
+                self.print_successor()
             pass
 
     def print_menu(self):
