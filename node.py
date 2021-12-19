@@ -8,7 +8,7 @@ import time
 from request_handler import RequestHandler
 
 MAX_BITS = 4
-
+SLEEP_TIME = 5
 
 def get_hash(key):
     result = hashlib.sha256(key.encode())
@@ -212,7 +212,7 @@ class Node:
         :return: Empty
         """
         if self.pred is None or self.pred == self.address or int(self.pred_id) < int(id) < int(self.id) or \
-                (int(self.pred_id) > int(self.id) > int(id)):
+                (int(self.pred_id) > int(self.id) > int(id)) or (int(self.pred_id) < int(id) and int(self.id) < int(id)):
             self.pred = (ip, int(port))
             self.pred_id = get_hash(ip + ":" + port)
 
@@ -223,15 +223,16 @@ class Node:
                 self.finger_table[i][1] = self.find_successor(finger)
                 id = get_hash(ip + ":" + str(port))
                 self.finger_table[i][0] = id
-            time.sleep(10)
+            time.sleep(SLEEP_TIME)
 
     def stabilize(self):
         while self.run_threads:
             if self.succ is None:
-                time.sleep(10)
+                time.sleep(SLEEP_TIME)
                 continue
-            if self.succ == self.address:
-                time.sleep(10)
+            # if self.succ == self.address:
+            #     time.sleep(SLEEP_TIME)
+            #     continue
             result = self.request_handler.send_message(self.succ, "get_predecessor")
 
             if result == "error":
@@ -241,7 +242,8 @@ class Node:
             elif result[0] is not None:
                 id = get_hash(result[1][0] + ":" + str(result[1][1]))
                 if int(self.id) < int(id) < int(self.succ_id) or int(self.succ_id) == int(self.id) or \
-                        (int(self.succ_id) < int(self.id) and int(self.succ_id > int(id))):
+                        (int(self.succ_id) < int(self.id) and int(self.succ_id > int(id))) or \
+                        (self.succ_id < int(id) and self.id < int(id)):
                     self.succ_id = id
                     self.succ = (result[1][0], result[1][1])
             self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
@@ -264,11 +266,11 @@ class Node:
             # self.print_finger_table()
             # print("===============================================")
             # print()
-            time.sleep(10)
+            time.sleep(SLEEP_TIME)
 
     def check_predecessor(self):
         while self.run_threads:
-            time.sleep(10)
+            time.sleep(SLEEP_TIME)
             if self.pred is None or self.pred == self.address:
                 continue
             ping_result = self.request_handler.send_message(self.pred, "ping")
@@ -326,6 +328,7 @@ if __name__ == '__main__':
         port = int(sys.argv[2])
 
         node = Node(ip, port)
+        print("Node launched with ID:", node.id)
         node.start()
     else:
         print()
