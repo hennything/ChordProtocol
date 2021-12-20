@@ -56,7 +56,11 @@ class Node:
         just initializes the finger table to entries pointing to self
         """
         for i in range(MAX_BITS):
-            self.finger_table.append([self.id, self.address])
+            x = pow(2, i)
+            entry = (self.id + x) % pow(2, MAX_BITS)
+            self.finger_table.append([entry, None])
+        # for i in range(MAX_BITS):
+        #     self.finger_table.append([self.id, self.address])
 
     def start(self):
         """
@@ -64,6 +68,9 @@ class Node:
         list of the node. Launches a thread for: stabilize, fix fingers, check predecessor, menu and request listener.
         :return:
         """
+        self.finger_table[0][0] = self.succ_id
+        self.finger_table[0][1] = self.succ
+
         t_stab = threading.Thread(target=self.stabilize)
         t_stab.start()
         self.threads.append(t_stab)
@@ -201,8 +208,8 @@ class Node:
 
         self.succ = succ
         self.succ_id = get_hash(succ[0] + ":" + str(succ[1]))
-        self.finger_table[0][0] = self.succ_id
-        self.finger_table[0][1] = self.succ
+        # self.finger_table[0][0] = self.succ_id
+        # self.finger_table[0][1] = self.succ
         print("Node {} successfully joined the Chord ring".format(self.id))
 
     def notify(self, id, ip, port):
@@ -221,11 +228,11 @@ class Node:
 
     def fix_fingers(self):
         while self.run_threads:
-            for i in range(1, MAX_BITS):
+            for i in range(MAX_BITS):
                 finger = self.finger_table[i][0]
                 self.finger_table[i][1] = self.find_successor(finger)
-                id = get_hash(ip + ":" + str(port))
-                self.finger_table[i][0] = id
+                # id = get_hash(ip + ":" + str(port))
+                # self.finger_table[i][0] = id
             time.sleep(SLEEP_TIME)
 
     def stabilize(self):
