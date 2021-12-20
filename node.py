@@ -17,7 +17,7 @@ def get_hash(key):
 
 class Node:
 
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, listen_param=None):
         '''
         storage:
         '''
@@ -41,7 +41,10 @@ class Node:
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.bind((self.ip, self.port))
-            self.socket.listen()
+            if listen_param != None:
+                self.socket.listen(listen_param)
+            else:
+                self.socket.listen()
         except socket.error as msg:
             print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
             sys.exit()
@@ -304,6 +307,10 @@ class Node:
             pass
 
     def print_menu(self):
+        print("Node ID: {}".format(self.id))
+        print("===============================================")
+        print("==================  Menu  =====================")
+        print("===============================================")
         print("""\n1. Join Network
                  \n2. Print Finger Table
                  \n3. Print Predecessor
@@ -330,6 +337,16 @@ if __name__ == '__main__':
         node = Node(ip, port)
         print("Node launched with ID:", node.id)
         node.start()
+
+    elif len(sys.argv) == 4:
+        ip = sys.argv[1]
+        port = int(sys.argv[2])
+        listen_param = int(sys.argv[3])
+
+        node = Node(ip, port, listen_param)
+        print("Node launched with ID:", node.id)
+        node.start()
+        
     else:
         print()
         print("Not enough arguments given")

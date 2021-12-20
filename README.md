@@ -13,7 +13,6 @@ A node can join a chord ring by selecting 'join' in the menu prompt and passing 
 Todo:
 * implement leave (nodes can leave but not by menu input)
 * implement key/value pairs (adding data to nodes)
-* implement some error handling 
 
 Done:
 * start
