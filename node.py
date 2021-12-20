@@ -60,8 +60,6 @@ class Node:
             x = pow(2, i)
             entry = (self.id + x) % pow(2, MAX_BITS)
             self.finger_table.append([entry, None])
-        # for i in range(MAX_BITS):
-        #     self.finger_table.append([self.id, self.address])
 
     def start(self):
         """
@@ -165,13 +163,8 @@ class Node:
         :param id: ID of the node trying to join
         :return: Address of the finger table entry that satisfies the requirement
         """
-        # closest = None
-        # min_distance = pow(2, MAX_BITS) + 1
-        # print("minimum distance: ", min_distance)
         for i in range(MAX_BITS - 1, 0, -1):
             if self.finger_table[i][1] is not None and self.id < self.finger_table[i][0] < int(id):
-                # if self.pred is None or self.pred == self.address or int(self.pred_id) < int(id) < int(self.id) or \
-                # (int(self.pred_id) > int(self.id) > int(id)) or (int(self.pred_id) < int(id) and int(self.id) < int(id)):
                 return self.finger_table[i][1]
         return self.address
 
@@ -213,8 +206,6 @@ class Node:
 
         self.succ = succ
         self.succ_id = get_hash(succ[0] + ":" + str(succ[1]))
-        # self.finger_table[0][0] = self.succ_id
-        # self.finger_table[0][1] = self.succ
         print("Node {} successfully joined the Chord ring".format(self.id))
 
     def notify(self, id, ip, port):
@@ -233,36 +224,21 @@ class Node:
 
     def fix_fingers(self):
         while self.run_threads:
-            # index = random.randint(1, MAX_BITS-1)
             for i in range(1, MAX_BITS):
                 data = self.find_successor(self.finger_table[i][0])
-                # if data == None:
-                #     time.sleep(SLEEP_TIME)
-                #     continue
                 self.finger_table[i][1] = data
                 time.sleep(SLEEP_TIME)
-
-    # def fix_fingers(self):
-    #     while self.run_threads:
-    #         for i in range(1, MAX_BITS):
-    #             finger = self.finger_table[i][0]
-    #             self.finger_table[i][1] = self.find_successor(finger)
-    #         time.sleep(SLEEP_TIME)
 
     def stabilize(self):
         while self.run_threads:
             if self.succ is None:
                 time.sleep(SLEEP_TIME)
                 continue
-            # if self.succ == self.address:
-            #     time.sleep(SLEEP_TIME)
-            #     continue
             result = self.request_handler.send_message(self.succ, "get_predecessor")
 
             if result == "error":
                 self.succ_id = self.id
                 self.succ = self.address
-                # result = [self.id, self.address]
             elif result[0] is not None:
                 id = get_hash(result[1][0] + ":" + str(result[1][1]))
                 if int(self.id) < int(id) < int(self.succ_id) or int(self.succ_id) == int(self.id) or \
