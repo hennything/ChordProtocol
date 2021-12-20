@@ -8,7 +8,6 @@ class RequestHandler:
     def send_message(self, address, message):
         try:
             ping = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
             # connect to server on local computer
             ping.connect(address)
             ping.send(pickle.dumps(message))
