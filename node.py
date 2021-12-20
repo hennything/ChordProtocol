@@ -4,6 +4,7 @@ import socket
 import sys
 import threading
 import time
+import random
 
 from request_handler import RequestHandler
 
@@ -68,7 +69,6 @@ class Node:
         list of the node. Launches a thread for: stabilize, fix fingers, check predecessor, menu and request listener.
         :return:
         """
-        self.finger_table[0][0] = self.succ_id
         self.finger_table[0][1] = self.succ
 
         t_stab = threading.Thread(target=self.stabilize)
@@ -165,8 +165,13 @@ class Node:
         :param id: ID of the node trying to join
         :return: Address of the finger table entry that satisfies the requirement
         """
+        # closest = None
+        # min_distance = pow(2, MAX_BITS) + 1
+        # print("minimum distance: ", min_distance)
         for i in range(MAX_BITS - 1, 0, -1):
             if self.finger_table[i][1] is not None and self.id < self.finger_table[i][0] < int(id):
+                # if self.pred is None or self.pred == self.address or int(self.pred_id) < int(id) < int(self.id) or \
+                # (int(self.pred_id) > int(self.id) > int(id)) or (int(self.pred_id) < int(id) and int(self.id) < int(id)):
                 return self.finger_table[i][1]
         return self.address
 
@@ -228,12 +233,21 @@ class Node:
 
     def fix_fingers(self):
         while self.run_threads:
-            for i in range(MAX_BITS):
-                finger = self.finger_table[i][0]
-                self.finger_table[i][1] = self.find_successor(finger)
-                # id = get_hash(ip + ":" + str(port))
-                # self.finger_table[i][0] = id
-            time.sleep(SLEEP_TIME)
+            # index = random.randint(1, MAX_BITS-1)
+            for i in range(1, MAX_BITS):
+                data = self.find_successor(self.finger_table[i][0])
+                # if data == None:
+                #     time.sleep(SLEEP_TIME)
+                #     continue
+                self.finger_table[i][1] = data
+                time.sleep(SLEEP_TIME)
+
+    # def fix_fingers(self):
+    #     while self.run_threads:
+    #         for i in range(1, MAX_BITS):
+    #             finger = self.finger_table[i][0]
+    #             self.finger_table[i][1] = self.find_successor(finger)
+    #         time.sleep(SLEEP_TIME)
 
     def stabilize(self):
         while self.run_threads:
@@ -257,25 +271,6 @@ class Node:
                     self.succ_id = id
                     self.succ = (result[1][0], result[1][1])
             self.request_handler.send_message(self.succ, "notify:{}:{}:{}".format(self.id, self.ip, self.port))
-            # print()
-            # print("===============================================")
-            # print("================= STABILIZING =================")
-            # print("===============================================")
-            # print()
-            # print("ID/Address: ", self.id)
-            # if self.succ is not None:
-            #     # print("Successor ID/Address: ", self.succ_id, self.succ)
-            #     self.print_successor()
-            # if self.pred is not None:
-            #     self.print_predecessor()
-            #     # print("predecessor ID/Address: ", self.pred_id, self.pred)
-            # print()
-            # print("===============================================")
-            # print("=============== FINGER TABLE ==================")
-            # # print(self.finger_table)
-            # self.print_finger_table()
-            # print("===============================================")
-            # print()
             time.sleep(SLEEP_TIME)
 
     def check_predecessor(self):
@@ -299,17 +294,11 @@ class Node:
             self.print_menu()
             mode = input()
             if mode == '1':
-                print("Give the IP of the known node:")
-                known_ip = input()
-                print("Give the port of the known node you want to connect:")
-                known_port = input()
-                self.join((known_ip, int(known_port)))
-            elif mode == '2':
                 self.print_finger_table()
                 pass
-            elif mode == '3':
+            elif mode == '2':
                 self.print_predecessor()
-            elif mode == '4':
+            elif mode == '3':
                 self.print_successor()
             pass
 
@@ -318,10 +307,9 @@ class Node:
         print("===============================================")
         print("==================  Menu  =====================")
         print("===============================================")
-        print("""\n1. Join Network
-                 \n2. Print Finger Table
-                 \n3. Print Predecessor
-                 \n4. Print Successor""")
+        print("""\n1. Print Finger Table
+                 \n2. Print Predecessor
+                 \n3. Print Successor""")
 
     def print_predecessor(self):
         print("Predecessor:", self.pred_id)
@@ -345,12 +333,15 @@ if __name__ == '__main__':
         print("Node launched with ID:", node.id)
         node.start()
 
-    elif len(sys.argv) == 4:
-        ip = sys.argv[1]
-        port = int(sys.argv[2])
-        listen_param = int(sys.argv[3])
+    elif len(sys.argv) == 5:
+        known_ip = sys.argv[1]
+        known_port = int(sys.argv[2])
 
-        node = Node(ip, port, listen_param)
+        ip = sys.argv[3]
+        port = int(sys.argv[4])
+
+        node = Node(ip, port)
+        node.join((known_ip, known_port))
         print("Node launched with ID:", node.id)
         node.start()
         
