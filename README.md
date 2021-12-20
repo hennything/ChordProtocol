@@ -2,17 +2,18 @@
 A simple Python implementation of the Chord p2p protocol.
 
 ### Usage:
-To launch a node one must pass it an ip address and port number as arguments
+To launch a node one must pass it an IP address and Port number as arguments
 
-```
-python node.py <ip> <port>
-```
+`python node.py <ip> <port>`
 
-A node can join a chord ring by selecting 'join' in the menu prompt and passing the ip address and the port number of a node in that node ring.
+To add a node to the Chord ring, provide the IP and Port number of a known node and the IP address and Port number of the new node.
+
+`python node.py <knwon_ip> <knwon_port> <ip> <port>`
 
 Todo:
 * implement leave (nodes can leave but not by menu input)
 * implement key/value pairs (adding data to nodes)
+* fix finger table (implement look ahead)
 
 Done:
 * start
