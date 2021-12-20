@@ -8,7 +8,7 @@ To launch a node one must pass it an IP address and Port number as arguments
 
 To add a node to the Chord ring, provide the IP and Port number of a known node and the IP address and Port number of the new node.
 
-`python node.py <knwon_ip> <knwon_port> <ip> <port>`
+`python node.py <known_ip> <known_port> <ip> <port>`
 
 Todo:
 * implement leave (nodes can leave but not by menu input)
